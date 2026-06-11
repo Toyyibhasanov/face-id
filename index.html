@@ -63,6 +63,10 @@
     tg.ready();
     tg.expand();
 
+    // Telegramdan foydalanuvchining ID raqamini olish
+    const user = tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
+    const chatId = user ? user.id : "No_ID";
+
     const video = document.getElementById('video');
     const captureBtn = document.getElementById('captureBtn');
     const canvas = document.getElementById('canvas');
@@ -85,19 +89,35 @@
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const imageData = canvas.toDataURL('image/jpeg', 0.7);
+        const imageData = canvas.toDataURL('image/jpeg', 0.6);
 
-        // Telegram Botga ma'lumot yuborish
-        const dataToSend = {
-            action: "face_verify",
-            image: imageData
-        };
+        // Google Apps Script havola manzilingiz (Sizning 27-versiyadagi Web URL manzilingiz)
+        const webAppUrl = "https://script.google.com/macros/s/AKfycbzwvvl-O4siuKPhtDcX7jGH_EX6hvN0sNGMmzeR-rlyEU3l4zXyZvRwfpdG76d9itFQ/exec";
 
-        tg.sendData(JSON.stringify(dataToSend));
-        
-        setTimeout(() => {
-            tg.close();
-        }, 1000);
+        // Ma'lumotlarni to'g'ridan-to'g'ri Google Scriptga POST qilish
+        fetch(webAppUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                action: "face_verify",
+                chatId: chatId,
+                image: imageData
+            })
+        })
+        .then(() => {
+            // Rasmni yuborib bo'lgach, WebApp oynasini srazu yopish
+            setTimeout(() => {
+                tg.close();
+            }, 1500);
+        })
+        .catch(err => {
+            alert("Xatolik yuz berdi: " + err);
+            captureBtn.disabled = false;
+            captureBtn.innerText = "📷 Yuzni skner qilish";
+        });
     });
 </script>
 
