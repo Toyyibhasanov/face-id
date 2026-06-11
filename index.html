@@ -6,71 +6,100 @@
     <title>FaceID Skaner</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .container { text-align: center; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
-        #video { width: 100%; border-radius: 50%; width: 250px; height: 250px; object-fit: cover; border: 5px solid #0088cc; transform: scaleX(-1); }
-        button { background-color: #0088cc; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; margin-top: 15px; width: 100%; }
-        #status { margin-top: 15px; font-weight: bold; color: #555; }
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+        video {
+            width: 100%;
+            border-radius: 10px;
+            background-color: #222;
+            transform: scaleX(-1);
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 25px;
+            border: none;
+            background-color: #0088cc;
+            color: white;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+        button:disabled {
+            background-color: #aaa;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h3>👤 Shaxsni tasdiqlash</h3>
-    <p style="font-size: 14px; color: #666;">Yuzingizni doira ichiga keltiring va tugmani bosing</p>
+    <h3>KORXONA FACE-ID SYSTEM</h3>
+    <p>Iltimos, yuzingizni kameraga to'g'rilab, tugmani bosing</p>
     <video id="video" autoplay playsinline></video>
-    <button id="captureBtn">📸 YUZNI TEKSHIRISH</button>
-    <div id="status">Kameraga ruxsat berilmoqda...</div>
+    <button id="captureBtn">📷 Yuzni skner qilish</button>
+    <canvas id="canvas" style="display:none;"></canvas>
 </div>
 
 <script>
-    const video = document.getElementById('video');
-    const captureBtn = document.getElementById('captureBtn');
-    const statusDiv = document.getElementById('status');
-    
-    // Telegram WebApp yuklanishi
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
+    const video = document.getElementById('video');
+    const captureBtn = document.getElementById('captureBtn');
+    const canvas = document.getElementById('canvas');
+
     // Kamerani ishga tushirish
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then(stream => { video.srcObject = stream; statusDiv.innerText = "Kamera tayyor!"; })
-        .catch(err => { statusDiv.innerText = "Kameraga ruxsat berilmadi!"; console.error(err); });
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            alert("Kameraga ruxsat berilmadi yoki xatolik: " + err);
+        });
 
-    captureBtn.addEventListener('click', async () => {
-        statusDiv.innerText = "Suratga olinmoqda...";
-        statusDiv.style.color = "#0088cc";
-        
-        const canvas = document.createElement('canvas');
+    captureBtn.addEventListener('click', () => {
+        captureBtn.disabled = true;
+        captureBtn.innerText = "Tekshirilmoqda...";
+
+        const context = canvas.getContext('2d');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = canvas.toDataURL('image/jpeg', 0.7);
+
+        // Telegram Botga ma'lumot yuborish
+        const dataToSend = {
+            action: "face_verify",
+            image: imageData
+        };
+
+        tg.sendData(JSON.stringify(dataToSend));
         
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-        
-        statusDiv.innerText = "Sun'iy intellekt tekshirmoqda, kuting...";
-        
-        // Telegram Botga ma'lumotni qaytarish
-        const reader = new FileReader();
-        reader.readAsDataURL(blob); 
-        reader.onloadend = function() {
-            const base64data = reader.result;
-            
-            // Botimizga yuz suratini yuborish
-            tg.sendData(JSON.stringify({
-                action: "face_verify",
-                image: base64data
-            }));
-            
-            statusDiv.innerText = "Natija botga yuborildi. Sahifani yopishingiz mumkin.";
-            statusDiv.style.color = "green";
-            setTimeout(() => { tg.close(); }, 1500);
-        }
+        setTimeout(() => {
+            tg.close();
+        }, 1000);
     });
 </script>
+
 </body>
 </html>
